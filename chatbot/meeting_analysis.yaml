@@ -1,0 +1,219 @@
+name: meeting_analysis
+description: This semantic model allows users to generate insights from meetings, combining OCR of any slides presented, transcription of meeting audio, and semantic meaning extracted from key moments in the meeting video.
+tables:
+  - name: SLIDES_ANALYSIS
+    base_table:
+      database: HOL_DB
+      schema: PUBLIC
+      table: SLIDES_ANALYSIS
+    dimensions:
+      - name: MEETING_ID
+        expr: MEETING_ID
+        data_type: VARCHAR(16777216)
+        sample_values:
+          - IS1004
+        description: Unique identifier for a meeting
+        synonyms:
+          - meeting_identifier
+      - name: MEETING_PART
+        expr: MEETING_PART
+        data_type: VARCHAR(16777216)
+        sample_values:
+          - IS1004c
+        description: Meeting part identifier, uniquely categorizing a specific segment of a meeting. Usually the meeting_id with a suffix of a, b, c, or d, where each part represents a sequential 1 hour section of the meeting
+        synonyms:
+          - meeting_segment
+          - meeting_portion
+          - meeting_section
+          - meeting_module
+    facts:
+      - name: TEXT_CONTENT
+        expr: TEXT_CONTENT
+        data_type: VARCHAR(16777216)
+        sample_values:
+          - |-
+            (1)lide Shov Window  
+            107% 2)»i Arial 18  
+            18  
+            18  
+            lethod
+            # Method
+
+            # For the Power Source: Solar Cells and Batteries (for lów light conditions) Case: Plastic with some elasticity, double curve for ease of handling Control:
+              
+            Control:
+            - Push buttons for the traditional users
+            - Scroll button with push technology for channel selection, volume control and tele- text borwising
+            * text borwising
+
+            # Real Reaction
+            Click to add notes  
+            ate Website - Micr JltMe GlTAgenda2gn(1)
+          - |-
+            werPoint- [Agenda2]Window Help  
+            107% 2) »i Arial 18  
+            18  
+            Design New Slide  
+            18  
+            les Real Reaction al Design meeting Agenda  
+            Real Reaction We put fashion in electronics
+            |||||
+            | :---: | :---: | :---: | :---: |
+            |||||
+
+            # Conceptual Design meeting
+
+            # Presented by: S. Marcel, Project Manager
+              
+            ManagerM minutes2 - Microsoft Word rate Website - Micr Inbox - Outlook Expres ltMes r\Project\AMI.
+          - |-
+            werPoint - [Agenda2]Window Help  
+            X107% 2) »i Arial 18  
+            Design New Slide  
+            Real Reaction  
+            Real Reaction al Design meeting by: S. Marcel, Profedt dapaqer  
+            Agenda
+            # Agenda
+              
+            Opening PM = secretary (minutes) presentations Decision on remote control concepts Closing (we have 40 minutes!)
+            # Real Reaction
+            Click to add notesate Website - Micr Inbox - Outlook Expre ltMes rProject\AMI..
+        description: Contains text content from the meeting presenter's screen, usually containing a presentation slide or document.  It may also contain unrelated bits of text from software programs and the operating system
+        synonyms:
+          - slide_data
+          - content_text
+          - description
+          - content_description
+          - text_info
+          - content_info
+  - name: VIDEO_ANALYSIS
+    base_table:
+      database: HOL_DB
+      schema: PUBLIC
+      table: VIDEO_ANALYSIS
+    dimensions:
+      - name: MEETING_ID
+        expr: MEETING_ID
+        data_type: VARCHAR(16777216)
+        sample_values:
+          - IS1004
+        description: Unique identifier for a meeting
+        synonyms:
+          - meeting_identifier
+      - name: MEETING_PART
+        expr: MEETING_PART
+        data_type: VARCHAR(16777216)
+        sample_values:
+          - IS1004c
+        description: Meeting part identifier, uniquely categorizing a specific segment of a meeting. Usually the meeting_id with a suffix of a, b, c, or d, where each part represents a sequential 1 hour section of the meeting
+        synonyms:
+          - meeting_segment
+          - meeting_portion
+          - meeting_section
+          - meeting_module
+    time_dimensions:
+      - name: START_TIME
+        expr: START_TIME
+        data_type: VARCHAR(16777216)
+        description: The point in time when the described event started
+        synonyms:
+          - start_date
+          - begin_time
+          - initial_time
+          - commencement_time
+          - kickoff_time
+          - launch_time
+          - initiation_time
+        sample_values:
+          - '00:00:21'
+          - '00:00:00'
+          - '00:01:45'
+      - name: END_TIME
+        expr: END_TIME
+        data_type: VARCHAR(16777216)
+        description: The point in time when the described event ended
+        synonyms:
+          - completion_time
+          - finish_time
+          - end_date
+          - closing_time
+          - termination_time
+          - expiry_time
+          - conclusion_time
+        sample_values:
+          - '00:00:21'
+          - '00:03:09'
+          - '00:01:45'
+    facts:
+      - name: DESCRIPTION
+        expr: DESCRIPTION
+        data_type: VARCHAR(16777216)
+        description: A text description of what is happening in the meeting, including participant actions, and what is being displayed on screen
+        synonyms:
+          - summary
+          - details
+          - notes
+          - comments
+          - explanation
+          - caption
+          - text
+          - narrative
+          - account
+        sample_values:
+          - The screen changes to a slide titled "Interface Concept," which includes a diagram and text discussing the design model and technology. The group engages in a detailed discussion about the interface concept, with one individual standing and pointing at the screen while others take notes.
+          - The video opens with a group of four individuals entering a room equipped with a large screen displaying a presentation titled "Conceptual Design Meeting." The room is set up for a collaborative discussion, with a table covered in papers and a laptop. The individuals sit down and begin engaging in conversation.
+          - The group continues their discussion, focusing on the content displayed on the screen. The screen shows a slide titled "Method" with bullet points about user preferences and constraints. The individuals take notes and discuss the information presented.
+  - name: SPEECH_ANALYSIS
+    base_table:
+      database: HOL_DB
+      schema: PUBLIC
+      table: SPEECH_ANALYSIS
+    dimensions:
+      - name: MEETING_ID
+        expr: MEETING_ID
+        data_type: VARCHAR(16777216)
+        sample_values:
+          - IS1004
+        description: Unique identifier for a meeting
+        synonyms:
+          - meeting_identifier
+      - name: MEETING_PART
+        expr: MEETING_PART
+        data_type: VARCHAR(16777216)
+        sample_values:
+          - IS1004c
+        description: Meeting part identifier, uniquely categorizing a specific segment of a meeting. Usually the meeting_id with a suffix of a, b, c, or d, where each part represents a sequential 1 hour section of the meeting
+    facts:
+      - name: TEXT_CONTENT
+        expr: TEXT_CONTENT
+        data_type: VARCHAR(16777216)
+        description: A meeting transcript discussing the design and development of a new remote control, with a focus on a banana-shaped design, user interface, and features such as scroll wheels, a turbo button, and a base station with a beeping function to help locate the remote.
+        sample_values:
+          - Going to the last slide? Yeah, before ending the meeting, I'd like to draw some sketch about the future prototype. Go for it. Okay. Well, no, not you. You can finish your slides. Okay, so anyway, users will be... So the findings is users will be very interested in our locator device to find their misplaced remotes. So that was very... I thought it's a very good suggestion by everybody. Okay, that's all? Yeah. Okay, so... So, we're done for the presentations. So, we need to take some decisions about what we're going to do. So, I propose that you go to the whiteboard. Yeah. And we're going to report all the ideas we had during these presentations just to draw some sketch about what will be the final product and our super mango banana and with the basis Extra functionalities such as wheels, the speaker you need in order not to lose the device. I don't remember what you call it. That's right. The basis station. Basis station, yeah. So we're going for a stylish banana shape. Yeah, so I guess you want to hold, like the way, the end of the banana you want to kind of hold, you maybe want to hold like a gun rather than-- because you don't want it to point towards the floor. So if you have like-- What about this shape, more or less? There's less space on this to put the buttons. If it has really the molded shape of a banana-- the starting is good, but it should have more the shape of a banana if you want to point really. I just think if you don't want to do that movement, which is difficult, if you don't have to do it, in fact, it's better. So time is running. We have to move forward. So let's skip to this ID. Yeah. So we have this. We have a basis. Are you recording it already? The base station? The base station. We'll have a base station extra on the side. OK. So I guess we need something that can fit a banana-shaped object. Yeah. We have a RF for beeping. That's right. OK. Thank you. Thank you. Thank you. The problem is after all this meeting, there is time. It's a meeting day.
+        synonyms:
+          - transcript
+          - speech_text
+          - meeting_transcript
+          - text_data
+          - spoken_words
+          - conversation_text
+          - dialogue_content
+verified_queries:
+  - name: video_analysis_description_by_time
+    question: What was happening one minute into meeting IS1004c?
+    use_as_onboarding_question: false
+    sql: SELECT description FROM video_analysis WHERE meeting_id = 'IS1004' AND meeting_part = 'IS1004c' AND start_time <= '00:01:00' AND end_time >= '00:01:00'
+    verified_by: Yavor Georgiev
+    verified_at: 1748335383
+  - name: slide_text_by_keyword
+    question: Find any slides about Findings in meeting part IS1004c
+    use_as_onboarding_question: false
+    sql: SELECT text_content FROM slides_analysis WHERE meeting_id = 'IS1004' AND meeting_part = 'IS1004c' AND LOWER(text_content) LIKE LOWER('%Findings%')
+    verified_by: Yavor Georgiev
+    verified_at: 1748382247
+  - name: speech_text_for_meeting
+    question: Summarize the discussion that took place in meeting IS1004c
+    use_as_onboarding_question: false
+    sql: SELECT text_content FROM speech_analysis WHERE meeting_id = 'IS1004' AND meeting_part = 'IS1004c'
+    verified_by: Yavor Georgiev
+    verified_at: 1748382351
