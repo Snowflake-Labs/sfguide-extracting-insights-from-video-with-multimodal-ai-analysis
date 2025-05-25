@@ -8,5 +8,10 @@ pip install qwen-vl-utils
 pip install click
 pip install snowflake-connector-python
 
+# Add optional args
+if [ -n "$FPS" ]; then
+  optional_args+=("--fps" "$FPS")
+fi
+
 # Running job code
-python3 -u /app/run.py --video-path $VIDEO_PATH --prompt "$PROMPT" --output-table $OUTPUT_TABLE
+python3 -u /app/run.py --video-path $VIDEO_PATH --prompt "$PROMPT" --output-table $OUTPUT_TABLE "${optional_args[@]}"

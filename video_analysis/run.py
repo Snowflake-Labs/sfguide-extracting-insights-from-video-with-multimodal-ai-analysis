@@ -17,28 +17,16 @@ logger.addHandler(ch)
 
 MODEL_PATH = "Qwen/Qwen2.5-VL-7B-Instruct"
 
-
 def get_login_token():
   with open("/snowflake/session/token", "r") as f:
     return f.read()
-  
-def get_connection_params():
-    return {
-      "account": os.getenv("SNOWFLAKE_ACCOUNT"),
-      "host": os.getenv("SNOWFLAKE_HOST"),
-      "authenticator": "oauth",
-      "token": get_login_token(),
-      "warehouse": os.getenv("SNOWFLAKE_WAREHOUSE"),
-      "database": os.getenv("SNOWFLAKE_DATABASE"),
-      "schema": os.getenv("SNOWFLAKE_SCHEMA")
-    }
-
 
 @click.command()
 @click.option("--video-path", help="URL of the video to analyze")
+@click.option("--fps", help="FPS to process the video", default=None, type=float)
 @click.option("--prompt", help="Prompt to use for video analysis")
 @click.option("--output-table", help="Output table")
-def main(video_path: str, prompt: str, output_table: str):
+def main(video_path: str, prompt: str, output_table: str, fps: float):
     llm = LLM(
         model=MODEL_PATH,
         limit_mm_per_prompt={"image": 1, "video": 1},
@@ -56,19 +44,23 @@ def main(video_path: str, prompt: str, output_table: str):
         stop_token_ids=[],
     )
 
+    video_params = {
+        "type": "video", 
+        "video": video_path,
+        "total_pixels": 20480 * 28 * 28, 
+        "min_pixels": 16 * 28 * 28
+    }
+
+    if fps is not None:
+        video_params["fps"] = fps
+
     video_messages = [
         {"role": "system", "content": "You are a helpful assistant."},
         {"role": "user", "content": [
                 {"type": "text", "text": prompt},
-                {
-                    "type": "video", 
-                    "video": video_path,
-                    "total_pixels": 20480 * 28 * 28, 
-                    "min_pixels": 16 * 28 * 28,
-                    "fps": 0.25
-                }
+                video_params
             ]
-        },
+        }
     ]
 
     processor = AutoProcessor.from_pretrained(MODEL_PATH)
@@ -108,26 +100,33 @@ def main(video_path: str, prompt: str, output_table: str):
             segments = json.loads(json_str)
         
             # Connect to Snowflake
-            conn = snowflake.connector.connect(get_connection_params())
+            conn = snowflake.connector.connect(
+                account= os.getenv("SNOWFLAKE_ACCOUNT"),
+                warehouse=os.getenv("SNOWFLAKE_WAREHOUSE"),
+                database=os.getenv("SNOWFLAKE_DATABASE"),
+                schema=os.getenv("SNOWFLAKE_SCHEMA"),
+                host=os.getenv("SNOWFLAKE_HOST"),
+                authenticator="oauth",
+                token=get_login_token());
             cursor = conn.cursor()
-            
-            # Drop the table if it exists
-            cursor.execute(f"DROP TABLE IF EXISTS {output_table}")
-            
+              
             # Create the table
             cursor.execute(f"""
-            CREATE TABLE {output_table} (
+            CREATE TABLE IF NOT EXISTS {output_table} (
                 video VARCHAR,
                 start_time VARCHAR,
                 end_time VARCHAR,
                 description VARCHAR(16777216)
             )
             """)
+
+            # Clear existing data for this meeting
+            cursor.execute(f"DELETE FROM {output_table} WHERE video = %s", (video_path,))
             
             # Insert data
             for segment in segments:
                 cursor.execute(f"""
-                INSERT INTO {output_table} (video_path, start_time, end_time, description)
+                INSERT INTO {output_table} (video, start_time, end_time, description)
                 VALUES (%s, %s, %s, %s)
                 """, (
                     video_path,
@@ -137,8 +136,11 @@ def main(video_path: str, prompt: str, output_table: str):
                 ))
             
             conn.commit()
-            logger.info(f"Successfully created table {output_table} with {len(segments)} segments")
-            
+            logger.info(f"Successfully inserted {len(segments)} events into table {output_table} for video {video_path}")
+        else:
+            logger.error("No valid JSON array found in the generated text.")
+            raise ValueError("No valid JSON array found in the generated text.")
+
     except Exception as e:
         logger.error(f"Error processing results: {str(e)}")
         raise

@@ -34,22 +34,25 @@ DROP SERVICE process_video FORCE;
 EXECUTE JOB SERVICE
   IN COMPUTE POOL hol_compute_pool
   NAME = process_video
-  EXTERNAL_ACCESS_INTEGRATIONS=(allow_all_aei)
+  ASYNC=TRUE
+  EXTERNAL_ACCESS_INTEGRATIONS=(ALLOW_ALL_EAI)
   FROM SPECIFICATION $$
 spec:
   containers:
     - name: qwen25vl
-      image: pm-pm-aws-us-west-2.registry.snowflakecomputing.com/yavorg_container_hol_db/public/image_repo/qwen2.5vl:v0.42
+      image: pm-pm-aws-us-west-2.registry.snowflakecomputing.com/yavorg_container_hol_db/public/image_repo/qwen2.5vl:v0.47
       resources:
         requests:
           nvidia.com/gpu: 4
         limits:
           nvidia.com/gpu: 4
       env:
+        SNOWFLAKE_WAREHOUSE: yavorg
         HF_TOKEN: <your_hf_token>
         VIDEO_PATH: /videos/amicorpus/IS1004/video/IS1004c.C.mp4
         PROMPT: Provide a detailed description of this meeting video, dividing it in to sections with a one sentence description, and capture the most important text that's displayed on screen. Identify the start and end of each section with a timestamp in the 'mm:ss' format. Return the results as JSON
         OUTPUT_TABLE: video_analysis
+        FPS: 0.25
       volumeMounts:
         - name: videos
           mountPath: /videos
@@ -60,7 +63,7 @@ spec:
       source: memory
       size: 10Gi
     - name: videos
-      source: "@meetings"
+      source: "@videos"
   platformMonitor:
     metricConfig:
       groups:
@@ -68,3 +71,6 @@ spec:
   networkPolicyConfig:
     allowInternetEgress: true
       $$;
+
+
+-- cleanup
