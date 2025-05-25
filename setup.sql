@@ -72,5 +72,28 @@ spec:
     allowInternetEgress: true
       $$;
 
+-- ocr
+CREATE OR REPLACE TABLE slides_analysis (
+    image_path VARCHAR,
+    text_content STRING
+);
+
+INSERT INTO slides_analysis
+SELECT 
+    relative_path AS image_path,
+    CAST(SNOWFLAKE.CORTEX.PARSE_DOCUMENT(
+        @videos,
+        relative_path,
+        {'mode': 'LAYOUT'}
+    ):content AS STRING)
+    AS text_content
+FROM DIRECTORY(@videos)
+WHERE relative_path LIKE 'amicorpus/IS1004/slides/%.jpg'
+
+SELECT * FROM slides_analysis;
+
+
+-- asr
+SELECT SNOWFLAKE.CORTEX.AI_TRANSCRIBE(TO_FILE('@videos/amicorpus/IS1004/audio/IS1004c.Mix-Lapel.mp3'));
 
 -- cleanup
