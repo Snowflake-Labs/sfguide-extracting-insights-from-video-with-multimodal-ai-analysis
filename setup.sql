@@ -1,4 +1,4 @@
--- common setup
+-- Common setup
 USE ROLE ACCOUNTADMIN;
 
 CREATE ROLE container_user_role;
@@ -16,6 +16,7 @@ CREATE COMPUTE POOL hol_compute_pool
   MIN_NODES = 1
   MAX_NODES = 1
   INSTANCE_FAMILY = GPU_NV_M;
+-- TODO add auto-suspend to cp
 GRANT USAGE, MONITOR ON COMPUTE POOL hol_compute_pool TO ROLE container_user_role;
 
 GRANT ROLE container_user_role TO USER <user_name>
@@ -25,18 +26,26 @@ USE DATABASE hol_db;
 USE WAREHOUSE hol_warehouse;
 
 CREATE IMAGE REPOSITORY IF NOT EXISTS repo;
-CREATE STAGE IF NOT EXISTS meetings
-  DIRECTORY = ( ENABLE = true );
+CREATE STAGE IF NOT EXISTS videos
+  DIRECTORY = ( ENABLE = true )
+  ENCRYPTION = (TYPE = 'SNOWFLAKE_SSE');
 
 -- TODO SET UP EAI
 
-DROP SERVICE process_video FORCE;
+-- Meeting selection
+SET meeting_id = 'IS1004';
+SET meeting_part = 'IS1004c';
+-- TODO expand to all 4 segments
+
+-- Video analysis
+DROP SERVICE IF EXISTS process_video;
+
 EXECUTE JOB SERVICE
   IN COMPUTE POOL hol_compute_pool
-  NAME = process_video
   ASYNC=TRUE
+  NAME = process_video
   EXTERNAL_ACCESS_INTEGRATIONS=(ALLOW_ALL_EAI)
-  FROM SPECIFICATION $$
+  FROM SPECIFICATION_TEMPLATE $$
 spec:
   containers:
     - name: qwen25vl
@@ -47,10 +56,12 @@ spec:
         limits:
           nvidia.com/gpu: 4
       env:
+        MEETING_ID: IS1004
+        MEETING_PART: IS1004c
+        VIDEO_PATH: /videos/amicorpus/{{id}}/video/{{part}}.C.mp4
         SNOWFLAKE_WAREHOUSE: yavorg
         HF_TOKEN: <your_hf_token>
-        VIDEO_PATH: /videos/amicorpus/IS1004/video/IS1004c.C.mp4
-        PROMPT: Provide a detailed description of this meeting video, dividing it in to sections with a one sentence description, and capture the most important text that's displayed on screen. Identify the start and end of each section with a timestamp in the 'mm:ss' format. Return the results as JSON
+        PROMPT: Provide a detailed description of this meeting video, dividing it in to sections with a one sentence description, and capture the most important text that's displayed on screen. Identify the start and end of each section with a timestamp in the 'hh:mm:ss' format. Return the results as JSON
         OUTPUT_TABLE: video_analysis
         FPS: 0.25
       volumeMounts:
@@ -70,16 +81,19 @@ spec:
       - system
   networkPolicyConfig:
     allowInternetEgress: true
-      $$;
+      $$
+      USING(id=> $meeting_id, part=> $meeting_part);
 
--- ocr
+-- OCR
 CREATE OR REPLACE TABLE slides_analysis (
-    image_path VARCHAR,
+    image_path STRING,
     text_content STRING
 );
 
 INSERT INTO slides_analysis
-SELECT 
+SELECT
+    $meeting_id,
+    $meeting_part,
     relative_path AS image_path,
     CAST(SNOWFLAKE.CORTEX.PARSE_DOCUMENT(
         @videos,
@@ -88,12 +102,13 @@ SELECT
     ):content AS STRING)
     AS text_content
 FROM DIRECTORY(@videos)
-WHERE relative_path LIKE 'amicorpus/IS1004/slides/%.jpg'
+WHERE relative_path LIKE CONCAT('amicorpus/', $meeting_id, '/slides/%.jpg')
 
 SELECT * FROM slides_analysis;
 
 
 -- asr
-SELECT SNOWFLAKE.CORTEX.AI_TRANSCRIBE(TO_FILE('@videos/amicorpus/IS1004/audio/IS1004c.Mix-Lapel.mp3'));
+SELECT SNOWFLAKE.CORTEX.AI_TRANSCRIBE(
+  TO_FILE(CONCAT('@videos/amicorpus/',$meeting_id,'/audio/IS1004c.Mix-Lapel.mp3')));
 
--- cleanup
+-- TODO cleanup

@@ -14,4 +14,4 @@ if [ -n "$FPS" ]; then
 fi
 
 # Running job code
-python3 -u /app/run.py --video-path $VIDEO_PATH --prompt "$PROMPT" --output-table $OUTPUT_TABLE "${optional_args[@]}"
+python3 -u /app/run.py --video-path $VIDEO_PATH --prompt "$PROMPT" --output-table $OUTPUT_TABLE --meeting-id $MEETING_ID --meeting-part $MEETING_PART "${optional_args[@]}"

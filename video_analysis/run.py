@@ -7,7 +7,7 @@ import json
 import re
 import os
 import snowflake.connector
-
+from datetime import datetime
 # Set up logger
 logger = logging.getLogger("qwen2.5vl")
 logger.setLevel(logging.INFO)
@@ -20,13 +20,25 @@ MODEL_PATH = "Qwen/Qwen2.5-VL-7B-Instruct"
 def get_login_token():
   with open("/snowflake/session/token", "r") as f:
     return f.read()
+  
+def get_time(time_str: str) -> datetime.time:
+    ## Remove .ff at end of string
+     if '.' in time_str: time_str = time_str.split('.')[0]
+    
+    ## Add hh: prefix if it isn't there
+     if time_str.count(':') == 1: time_str = "00:" + time_str
+
+     return datetime.strptime(time_str, "%H:%M:%S").time()
+
 
 @click.command()
 @click.option("--video-path", help="URL of the video to analyze")
 @click.option("--fps", help="FPS to process the video", default=None, type=float)
 @click.option("--prompt", help="Prompt to use for video analysis")
 @click.option("--output-table", help="Output table")
-def main(video_path: str, prompt: str, output_table: str, fps: float):
+@click.option("--meeting-id", help="Meeting ID for the video")
+@click.option("--meeting-part", help="Meeting part for the video")
+def main(video_path: str, prompt: str, output_table: str, fps: float, meeting_id: str, meeting_part: str):
     llm = LLM(
         model=MODEL_PATH,
         limit_mm_per_prompt={"image": 1, "video": 1},
@@ -113,25 +125,29 @@ def main(video_path: str, prompt: str, output_table: str, fps: float):
             # Create the table
             cursor.execute(f"""
             CREATE TABLE IF NOT EXISTS {output_table} (
-                video VARCHAR,
-                start_time VARCHAR,
-                end_time VARCHAR,
+                meeting_id VARCHAR,
+                meeting_part VARCHAR,
+                video_path VARCHAR,
+                start_time TIME,
+                end_time TIME,
                 description VARCHAR(16777216)
             )
             """)
 
             # Clear existing data for this meeting
-            cursor.execute(f"DELETE FROM {output_table} WHERE video = %s", (video_path,))
+            cursor.execute(f"DELETE FROM {output_table} WHERE video_path = %s", (video_path,))
             
             # Insert data
             for segment in segments:
                 cursor.execute(f"""
-                INSERT INTO {output_table} (video, start_time, end_time, description)
-                VALUES (%s, %s, %s, %s)
+                INSERT INTO {output_table} (meeting_id, meeting_part, video_path, start_time, end_time, description)
+                VALUES (%s, %s, %s, %s, %s, %s)
                 """, (
+                    meeting_id,
+                    meeting_part,
                     video_path,
-                    segment.get('start_time'),
-                    segment.get('end_time'),
+                    get_time(segment.get('start_time')),
+                    get_time(segment.get('end_time')),
                     segment.get('description')
                 ))
             
