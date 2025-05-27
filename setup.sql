@@ -30,6 +30,8 @@ CREATE STAGE IF NOT EXISTS videos
   DIRECTORY = ( ENABLE = true )
   ENCRYPTION = (TYPE = 'SNOWFLAKE_SSE');
 
+-- TODO get files onto the stage from videos folder
+
 -- TODO SET UP EAI
 
 -- Meeting selection
@@ -56,8 +58,8 @@ spec:
         limits:
           nvidia.com/gpu: 4
       env:
-        MEETING_ID: IS1004
-        MEETING_PART: IS1004c
+        MEETING_ID: {{id}}
+        MEETING_PART: {{part}}
         VIDEO_PATH: /videos/amicorpus/{{id}}/video/{{part}}.C.mp4
         SNOWFLAKE_WAREHOUSE: yavorg
         HF_TOKEN: <your_hf_token>
@@ -84,31 +86,46 @@ spec:
       $$
       USING(id=> $meeting_id, part=> $meeting_part);
 
+SELECT * FROM video_analysis;
 -- OCR
 CREATE OR REPLACE TABLE slides_analysis (
+    meeting_id STRING,
+    meeting_part STRING,
     image_path STRING,
     text_content STRING
 );
 
 INSERT INTO slides_analysis
 SELECT
-    $meeting_id,
-    $meeting_part,
+    $meeting_id as meeting_id,
+    $meeting_part as meeting_part,
     relative_path AS image_path,
     CAST(SNOWFLAKE.CORTEX.PARSE_DOCUMENT(
         @videos,
         relative_path,
         {'mode': 'LAYOUT'}
-    ):content AS STRING)
-    AS text_content
+    ):content AS STRING) AS text_content
 FROM DIRECTORY(@videos)
-WHERE relative_path LIKE CONCAT('amicorpus/', $meeting_id, '/slides/%.jpg')
+WHERE relative_path LIKE CONCAT('amicorpus/', $meeting_id, '/slides/%.jpg');
 
 SELECT * FROM slides_analysis;
 
 
--- asr
-SELECT SNOWFLAKE.CORTEX.AI_TRANSCRIBE(
-  TO_FILE(CONCAT('@videos/amicorpus/',$meeting_id,'/audio/IS1004c.Mix-Lapel.mp3')));
+-- Speech Recognition ASR
+CREATE OR REPLACE TABLE speech_analysis (
+    meeting_id STRING,
+    meeting_part STRING,
+    audio_path STRING,
+    text_content STRING
+);
+
+SET audio_path = CONCAT('@videos/amicorpus/', $meeting_id, '/audio/', $meeting_part, '.Mix-Lapel.mp3');
+
+INSERT INTO speech_analysis
+SELECT
+    $meeting_id as meeting_id,
+    $meeting_part as meeting_part,
+    $audio_path AS audio_path,
+    CAST(SNOWFLAKE.CORTEX.AI_TRANSCRIBE(TO_FILE($audio_path)):text AS STRING) AS text_content
 
 -- TODO cleanup
