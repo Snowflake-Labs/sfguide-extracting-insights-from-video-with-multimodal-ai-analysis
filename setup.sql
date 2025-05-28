@@ -12,11 +12,13 @@ GRANT USAGE ON WAREHOUSE hol_warehouse TO ROLE container_user_role;
 
 GRANT BIND SERVICE ENDPOINT ON ACCOUNT TO ROLE container_user_role;
 
+-- Create a compute pool with one Medium GPU instance that suspendds after 1 hour of inactivity.
 CREATE COMPUTE POOL hol_compute_pool
   MIN_NODES = 1
   MAX_NODES = 1
-  INSTANCE_FAMILY = GPU_NV_M;
--- TODO add auto-suspend to cp
+  INSTANCE_FAMILY = GPU_NV_M
+  AUTO_SUSPEND = 3600;
+
 GRANT USAGE, MONITOR ON COMPUTE POOL hol_compute_pool TO ROLE container_user_role;
 
 GRANT ROLE container_user_role TO USER <user_name>
@@ -30,7 +32,11 @@ CREATE STAGE IF NOT EXISTS videos
   DIRECTORY = ( ENABLE = true )
   ENCRYPTION = (TYPE = 'SNOWFLAKE_SSE');
 
--- TODO get files onto the stage from videos folder
+-- Put files onto the stage from the local videos folder
+PUT file://videos/amicorpus/IS1004/*.mp3 @videos/amicorpus/IS1004/audio AUTO_COMPRESS=TRUE;
+PUT file://videos/amicorpus/IS1004/*.mp4 @videos/amicorpus/IS1004/video AUTO_COMPRESS=TRUE;
+PUT file://videos/amicorpus/IS1004/*.jpg @videos/amicorpus/IS1004/slides AUTO_COMPRESS=TRUE;
+
 
 -- TODO SET UP EAI
 
