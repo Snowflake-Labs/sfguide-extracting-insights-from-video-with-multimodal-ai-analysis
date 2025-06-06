@@ -34,11 +34,6 @@ CREATE EXTERNAL ACCESS INTEGRATION dependencies_access_integration
 
 GRANT USAGE ON INTEGRATION dependencies_access_integration TO ROLE hol_user_role;
 
--- SUMMIT ONLY
-GRANT USAGE ON DATABASE spcs_db TO ROLE hol_user_role;
-GRANT USAGE ON SCHEMA spcs_db.public TO ROLE hol_user_role;
-GRANT READ ON IMAGE REPOSITORY spcs_db.public.model_repo TO ROLE hol_user_role;
-
 GRANT CREATE STREAMLIT ON SCHEMA hol_db.public TO ROLE hol_user_role;
 SET name = (SELECT CURRENT_USER());
 GRANT ROLE hol_user_role TO USER IDENTIFIER($name);
@@ -47,8 +42,7 @@ USE ROLE hol_user_role;
 USE DATABASE hol_db;
 USE WAREHOUSE hol_warehouse;
 
--- SUMMIT ONLY: skip this step 
--- CREATE IMAGE REPOSITORY IF NOT EXISTS repo;
+CREATE IMAGE REPOSITORY IF NOT EXISTS repo;
 
 CREATE STAGE IF NOT EXISTS videos
   DIRECTORY = ( ENABLE = true )
@@ -70,19 +64,13 @@ SET meeting_part = 'IS1004c';
 
 -- VIDEO ANALYSIS
 
--- SUMMIT ONLY: skip this step...
 -- Build Docker image on command line and publish to SPCS Image Registry. 
--- Replace <image>:<version> below
--- SHOW IMAGE REPOSITORIES;
--- SHOW IMAGES IN IMAGE REPOSITORY repo
 
--- SUMMIT ONLY: ... replace with this step
 -- Replace <image>:<version> below
-SHOW IMAGE REPOSITORIES IN SCHEMA spcs_db.public
-SHOW IMAGES IN IMAGE REPOSITORY spcs_db.public.model_repo;
+SHOW IMAGE REPOSITORIES IN SCHEMA hol_db.public
+SHOW IMAGES IN IMAGE REPOSITORY hol_db.public.repo;
 
 DROP SERVICE IF EXISTS process_video;
-
 EXECUTE JOB SERVICE
   IN COMPUTE POOL hol_compute_pool
   ASYNC=TRUE
